@@ -2,7 +2,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;
 
-/* implemented the Hungarian algorithm to maximum the binding affinity*/
+/* implemented the Hungarian algorithm to maximum the binding affinity */
 
   public class test{
  
