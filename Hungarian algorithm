@@ -1,0 +1,765 @@
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Hashtable;
+
+/* implemented the Hungarian algorithm to maximum the binding affinity*/
+
+  public class test{
+ 
+	static int GRID_SIZE=150;
+	static int path_row_0;
+	static int path_col_0;
+	static int[][] path=new int[GRID_SIZE*2+1][2];
+	static int path_count=0;
+	static Double [][] matrix=new Double[GRID_SIZE][GRID_SIZE];
+	static int [][] mask=new int[GRID_SIZE][GRID_SIZE];
+	static int [] rowCover=new int[GRID_SIZE];
+	static int [] colCover=new int[GRID_SIZE];
+	
+	public double[][] pair=new double[GRID_SIZE][GRID_SIZE];
+	
+
+	public static Double findMax(Double[][] matrix){
+		double max=Double.MIN_VALUE;
+		for(int i=0;i<GRID_SIZE;i++){
+			for(int j=0;j<GRID_SIZE;j++){
+				if(matrix[i][j]>max){
+					max=matrix[i][j];}
+			}
+		}
+	return max;}
+	
+	
+	public static Double findMin(Double[][] matrix, int colCover[], int rowCover[]){
+		double min=Double.MAX_VALUE;
+		for(int i=0;i<GRID_SIZE;i++){
+			for(int j=0;j<GRID_SIZE;j++){
+				if(colCover[j]==0 && rowCover[i]==0){
+					if(matrix[i][j]<min){
+						min=matrix[i][j];
+					}
+				}
+			}
+		}
+	return min;	}
+	
+	/*Step 2: Find a zero in the resulting matrix.  Star this zero if there is no starred zero in its row or column. 
+	 * Use a mask matrix ,a row cover and a column cover */
+	
+	public static void step2(Double[][] matrix, int[] colCover, int[] rowCover, int[][] mask){
+		
+		for(int i=0;i<GRID_SIZE;i++){
+			for(int j=0;j<GRID_SIZE;j++){
+				if(matrix[i][j]==0 && rowCover[i]==0 && colCover[j]==0 ){
+					mask[i][j]=1;
+					rowCover[i]=1;
+					colCover[j]=1;
+				}
+			}
+		}
+			for(int row=0;row<GRID_SIZE;row++){
+				rowCover[row]=0;
+			}
+			for(int col=0;col<GRID_SIZE;col++){
+				colCover[col]=0;
+			}
+			
+			
+	step3(matrix, colCover, rowCover, mask);
+	}
+	
+
+	/*Step 3:  Cover each column containing a starred zero. 
+	 *  If all columns are covered, the starred zeros describe a complete set of unique assignments.  
+	 *  In this case, complete the computation,otherwise, Go to Step 4.
+	 */
+	public static void step3(Double[][] matrix, int[] colCover, int[] rowCover, int[][] mask)
+	{ 
+		int countCol=0;
+	
+		for(int i=0;i<GRID_SIZE;i++){
+			for(int j=0;j<GRID_SIZE;j++){
+				if(mask[i][j]==1){
+					colCover[j]=1;
+				}
+			}
+		}
+		
+		
+			for(int j=0;j<GRID_SIZE;j++){
+			if(colCover[j]==1)
+				countCol++;
+			}
+		
+			
+		if(countCol>=GRID_SIZE)
+			System.out.println("------------------computation complete-----------");
+		else
+			step4(matrix, colCover, rowCover, mask);
+		
+	}
+	
+	/*Step 4:  Find a noncovered zero and prime it.  
+	 * If there is starred zero in the row containing this primed zero, 
+	   cover this row and uncover the column containing the starred zero.  
+	 */
+	public static void step4(Double[][] matrix, int[] colCover, int[] rowCover, int[][] mask)
+	{
+		boolean done=false;
+		int rowCol[] = {-1,-1};
+		int col;
+		int row;
+
+		while(!done)
+		{		    
+				rowCol=prime_a_zero(matrix, rowCover,colCover,mask);
+				
+				row = rowCol[0];
+				col = rowCol[1];
+				if(row==-1)
+				{
+					done=true;
+
+					step6(matrix, colCover, rowCover, mask);}
+
+				else
+				{
+					mask[row][col]=2;
+					if(star_in_row(row,mask))
+					{
+					    col = find_star_in_row(row, mask,rowCover,colCover);
+					    rowCover[row]=1;
+					    colCover[col]=0;
+					}
+					else
+					{
+						done=true;
+				
+						path_row_0= row;
+		    	        path_col_0=col;
+		    	        
+						step5(matrix, colCover, rowCover, mask);
+		    	    }
+				}	
+		}
+	}
+	
+	/* Construct a series of alternating primed and starred zeros. 
+	 * Implemented the maximum matching algorithm here.
+	 */
+	public static void step5(Double[][] matrix, int[] colCover, int[] rowCover, int[][] mask){
+		path_count=1;	    
+		path[path_count-1][0]=path_row_0;
+		path[path_count-1][1]=path_col_0;
+		boolean done=false;
+		int r=-1;
+		int c = -1;
+		
+		while(!done)
+		{
+			r=find_star_in_col(path[path_count-1][1], mask);
+			if(r>-1)
+			{
+				path_count++;
+				path[path_count-1][1]=path[path_count-2][1];
+				path[path_count-1][0]=r;
+			}
+			else
+				done=true;
+				
+			if(!done)
+			{
+				c=find_prime_in_row(path[path_count-1][0], mask);
+				path_count++;
+				path[path_count-1][0]=path[path_count-2][0];
+				path[path_count-1][1]=c;		
+			}
+		}
+
+		augment_path(mask);
+		clear_covers(rowCover, colCover);
+	    
+		erase_primes(mask);
+		
+		step3(matrix, colCover, rowCover, mask);
+		}
+	
+	
+	
+	public static int find_star_in_col(int col, int[][] mask){
+		int r=-1;
+		for(int i=0;i<GRID_SIZE;i++){
+			if(mask[i][col]==1){
+			 r=i;
+			}
+		}
+	return r;}
+	
+	
+	public static int find_prime_in_row(int row, int[][] mask)
+	{
+		int ret = -1;
+		for(int j=0;j<GRID_SIZE;j++){
+			if(mask[row][j]==2){
+			 ret = j;
+			}
+		}
+	return ret;}
+	
+	public static void augment_path(int[][] mask)
+	{
+		for(int p=0;p<path_count;p++){
+			if(mask[path[p][0]][path[p][1]]==1){
+				mask[path[p][0]][path[p][1]]=0;
+			}
+			else 
+			{
+				mask[path[p][0]][path[p][1]]=1;
+			}
+			}
+	}
+	
+	public static void clear_covers(int[] rowCover, int[] colCover){
+		for(int i=0;i<GRID_SIZE;i++){
+			rowCover[i]=0;
+		}
+		for(int j=0;j<GRID_SIZE;j++){
+			colCover[j]=0;
+		}
+	}
+	
+	public static void erase_primes(int[][] mask){
+		for(int i=0;i<GRID_SIZE;i++){
+			for(int j=0;j<GRID_SIZE;j++){
+				if(mask[i][j]==2){
+					mask[i][j]=0;
+				}
+			}
+		}
+	}
+	
+	/*Step 6:  Add the minumum value found to every element of each covered row, 
+	   and subtract it from every element of each uncovered column.  
+	 */
+	public static void step6(Double[][] matrix, int[] colCover, int[] rowCover, int[][] mask)
+	{
+		double min=findMin(matrix,colCover,rowCover);
+		
+		for(int i=0;i<GRID_SIZE;i++){
+			for(int j=0;j<GRID_SIZE;j++){
+				if(rowCover[i]==1){
+					matrix[i][j]+=min;
+				}
+				if(colCover[j]==0){
+					matrix[i][j]-=min;
+				}
+			}
+		}
+
+	step4(matrix, colCover, rowCover, mask);
+	}
+	
+	
+	
+	public static Double[][] substractMax (Double[][] matrix,Double num){
+		for(int i=0;i<GRID_SIZE;i++){
+			for(int j=0;j<GRID_SIZE;j++){
+				matrix[i][j]-=num;
+				matrix[i][j]=0-matrix[i][j];
+			}
+		}
+		
+	return matrix;}
+	
+	
+	public static Double[] substractMin (Double[] number){
+	double min=Integer.MAX_VALUE;
+	
+		for(int i=0;i<number.length;i++){
+			if(number[i]<min){
+				min=number[i];
+			}
+		}
+		for(int i=0;i<number.length;i++){
+			number[i]=number[i]-min;
+		}
+	  return number;
+	  }
+	
+	public static Double[][] substractCol(Double[][] matrix){
+
+		   double min=0;int row=0;
+		   for(int j=0;j<GRID_SIZE;j++){
+			   
+			   if(row==GRID_SIZE){ min=Integer.MAX_VALUE;}
+			   for(row=0;row<GRID_SIZE;row++){
+				   if(matrix[row][j]<min){
+				   min= matrix[row][j];	   
+			   }
+				    }
+			   		
+			   for(row=0;row<GRID_SIZE;row++){
+				   matrix[row][j]-=min;}
+			   }
+	return matrix;}
+	
+	public static int[] prime_a_zero(Double[][] matrix, int rowCover[],int colCover[],int[][] mask)
+	{	    
+		int ret[] = {-1,-1};
+		int j;
+		for(int i=0;i<GRID_SIZE; ++i)
+		{
+		for( j=0;j<GRID_SIZE;j++){
+				if(matrix[i][j]==0 && colCover[j]==0 && rowCover[i]==0){
+					ret[0] = i;
+					ret[1] = j;
+					return ret;
+				}
+				
+			}
+		}
+	return ret;}
+	
+		public static boolean star_in_row(int row, int [][] mask){
+			for(int j=0;j<GRID_SIZE;j++){
+				if(mask[row][j]==1){
+					return true;
+				}
+			}
+		return false;}
+	
+		public static int find_star_in_row(int row, int [][] mask,int rowCover[],int colCover[])
+		{
+			int c = -1;
+			for(int j=0;j<GRID_SIZE;j++){
+				if(mask[row][j]==1){
+					c = j;
+					}
+		   	}	
+			return c;
+	 	}
+	
+		public static double findBA(String pname, String dname){
+		char[] pName=pname.toCharArray();
+		char[] dName=dname.toCharArray();
+		int plength=pName.length;
+		int dlength=dName.length;
+		int max=Math.max(plength,dlength);
+		double BA;
+		int count=0;
+		
+		for(int i=0;i<dlength;i++){
+			if(dName[i]=='a'||dName[i]=='e'||dName[i]=='i'||dName[i]=='o'||dName[i]=='u'
+			   ||dName[i]=='A'||dName[i]=='E'||dName[i]=='I'||dName[i]=='O'||dName[i]=='U')
+					{count++;}
+			}
+		
+		if(plength%2==0)
+			{BA=count*2;}
+		else 
+			{BA=(dlength-count)*2.5;}
+		
+		for(int i=2;i<=max; i++){
+			if(plength%i==0 && dlength%i==0)
+			{
+			BA=BA*1.25;
+			}
+		}
+		return BA;}
+	
+	public static void printMatrix(Double[][] matrix){
+		System.out.println();
+		for (int i = 0; i < matrix.length; i++) {
+			for (int j = 0; j < matrix[i].length; j++) {
+			if (matrix[i][j] < 10 && matrix[i][j] > -10) {
+			System.out.print(" ");
+			}
+			if (matrix[i][j] < 100 && matrix[i][j] > -100) {
+			System.out.print(" ");
+			}	
+			if (matrix[i][j] >= 0) {
+			System.out.print(" ");
+			}
+			System.out.print("" + matrix[i][j]);	
+			}
+			System.out.println();
+			}
+	}	
+	
+	public static void printMatrix(int[][] matrix){
+		System.out.println();
+		for (int i = 0; i < matrix.length; i++) {
+			for (int j = 0; j < matrix[i].length; j++) {
+			if (matrix[i][j] < 10 && matrix[i][j] > -10) {
+			System.out.print(" ");
+			}
+			if (matrix[i][j] < 100 && matrix[i][j] > -100) {
+			System.out.print(" ");
+			}	
+			if (matrix[i][j] >= 0) {
+			System.out.print(" ");
+			}
+			System.out.print("" + matrix[i][j]);	
+			}
+			System.out.println();
+			}
+	}	
+	public static void main(String[] args){
+		 Double [][] matrix=new Double[GRID_SIZE][GRID_SIZE];
+		 Double [][] matrixCopy= new Double[GRID_SIZE][GRID_SIZE];
+		 int [][] mask=new int[GRID_SIZE][GRID_SIZE];
+		 int [] rowCover=new int[GRID_SIZE];
+		 int [] colCover=new int[GRID_SIZE];
+		 HashMap<Integer, String> proteinMap= new HashMap<Integer, String>();
+		 HashMap<Integer, String> drugMap = new HashMap<Integer, String>();
+		 ArrayList<Pair>  result = new ArrayList<Pair>();
+		 double sum=0.0;
+		 		 
+		String[] drug={"Lipitor",
+				"Nexium",
+				"Plavix",
+				"Advair",
+				"Abilify",
+				"Seroquel",
+				"Singulair",
+				"Crestor",
+				"Actos",
+				"Epogen",
+				"Aricept",
+				"Cialis",
+				"Exelon",
+				"Lovenox",
+				"Gemzar",
+				"Enoxaparin",
+				"Atripla",
+				"Xalatan",
+				"Epzicom",
+				"Copaxone",
+				"Erbitux",
+				"NovoSeven",
+				"Spiriva",
+				"Benicar",
+				"Fentanyl",
+				"Lantus",
+				"Zosyn",
+				"Pantoprazole",
+				"Diovan",
+				"Boniva",
+				"Kaletra",
+				"Januvia",
+				"Evista",
+				"Aggrenox",
+				"Celebrex",
+				"Metoprolol",
+				"Nuvaring",
+				"Truvada",
+				"Zyvox",
+				"Viread",
+				"Diovan",
+				"Femara",
+				"Doryx",
+				"Lyrica",
+				"Omnipaque",
+				"Reclast",
+				"Effexor",
+				"Levemir",
+				"Angiomax",
+				"Herceptin",
+				"Prevnar",
+				"Avalide",
+				"Levaquin",
+				"Amphetamin",
+				"Treanda",
+				"Procrit",
+				"Solodyn",
+				"Concerta",
+				"Restasis",
+				"Welchol",
+				"Lucentis",
+				"Janumet",
+				"Temodar",
+				"Avonex",
+				"Flomax",
+				"Renvela",
+				"Zetia",
+				"NovoLog",
+				"Amphetamin",
+				"Tricor",
+				"Benicar",
+				"Invega",
+				"Gleevec",
+				"Zemplar",
+				"Lamictal",
+				"Namenda",
+				"Asacol",
+				"Avelox",
+				"Aranesp",
+				"Synthroid",
+				"Yaz",
+				"Geodon",
+				"Prograf",
+				"Caduet",
+				"Vytorin",
+				"Isentress",
+				"Nutropin",
+				"Taxotere",
+				"Avodart",
+				"Opana",
+				"Lidoderm",
+				"Velcade",
+				"Travatan",
+				"Provigil",
+				"Byetta",
+				"Lumigan",
+				"Niaspan",
+				"Gamunex",
+				"Pulmozyme",
+				"Nasonex",
+				"Orencia",
+				"Differin",
+				"Suboxone",
+				"Valacyclovir",
+				"Chantix",
+				"Lantus",
+				"Xeloda",
+				"Lotrel",
+				"Aciphex",
+				"Arimidex",
+				"Mirena",
+				"Viagra",
+				"Loestrin",
+				"Abraxane",
+				"Alimta",
+				"Valtrex",
+				"Pantoprazole",
+				"Vyvanse",
+				"Sandostatin",
+				"Cozaar",
+				"Neupogen",
+				"Strattera",
+				"Avandia",
+				"Combivent",
+				"Vesicare",
+				"Keppra",
+				"Rebif",
+				"Tarceva",
+				"Cellcept",
+				"Novolog",
+				"Premarin",
+				"Pantoprazole",
+				"AndroGel",
+				"Trilipix",
+				"Zyprexa",
+				"Lovaza",
+				"Risperdal",
+				"Gardasil",
+				"Varivax",
+				"Sensipar",
+				"Entocort",
+				"Reyataz",
+				"Protonix",
+				"Claravis",
+				"Symbicort",
+				"Cubicin",
+				"Arixtra",
+				"Flovent",
+				"Forteo",
+				"Venofer"
+				};
+		
+		String[] protein={
+				"50S-ribosomal-protein-P1-(L12P)",
+				"A3B3-complex",
+				"AaSPS",
+				"adenosine-A2A-receptor",
+				"afadin",
+				"AfuAlaRS",
+				"AlaRS",
+				"Ara7-AtVps9a-complex",
+				"aRF1",
+				"ASBT",
+				"Atg16",
+				"Atg19",
+				"Atg34",
+				"Atg7",
+				"Atg7-Atg8-complex",
+				"Atg8",
+				"Atg8-Atg19(peptide)-complex",
+				"Cbl-b",
+				"CERT-START-domain",
+				"ChR",
+				"Ci-VSP",
+				"cyclodipeptide-synthase",
+				"Cytochrome-c-oxidase",
+				"Cytochrome-P450cam",
+				"Dihydrouridine-synthase",
+				"Dmp1-Dmp2",
+				"Dmp1-Dmp2-a5",
+				"DotD",
+				"Esa1",
+				"Evectin-2",
+				"F1-ATPase-epsilon-subunit",
+				"FlhA",
+				"FliJ",
+				"FliT",
+				"GatCAB",
+				"GenX",
+				"GenX---EF-P-complex",
+				"gidA",
+				"glutamine-transamidosome",
+				"glutamyl-tRNA-synthetase",
+				"glutamyl-tRNA-synthetase",
+				"hAtg4B-LC3-complex",
+				"histamine-H1-receptor",
+				"HOIL-1L",
+				"IGF-1",
+				"IGF-IRalpha",
+				"IGF-IRbeta",
+				"IkB",
+				"IKK",
+				"IL-1",
+				"IL-1RAcP",
+				"IL1RI",
+				"IL-3",
+				"IL-3Ralpha",
+				"IL-3Rbeta",
+				"IL-6",
+				"IL-6R",
+				"IL-6RE",
+				"IP3",
+				"IRAK1",
+				"Keap1-DC",
+				"LC3-p62",
+				"LC3-p62(peptide)-complex",
+				"linear-diubiquitin",
+				"MafG---DNA-complex",
+				"MiaA-tRNA",
+				"MjPSTK",
+				"MjTRM5",
+				"MKLP1-ARF6-complex",
+				"MnmC",
+				"m-VSOP",
+				"nectin-1",
+				"NEMO-cozi-domain",
+				"NtpD-NtpG-complex",
+				"NtpK",
+				"Nucleomethylin",
+				"p300",
+				"p38",
+				"p53",
+				"p62-PB1-domain",
+				"p62-UBA-domain",
+				"PAC3",
+				"PAD4",
+				"PDGF",
+				"PDGFRalpha",
+				"PDK",
+				"Pelota-EF1a-complex",
+				"PI3K",
+				"PIP2",
+				"PIP3",
+				"PKA",
+				"PKC",
+				"PLC",
+				"proteasome-interacting-protein",
+				"PsrABC",
+				"PTEN",
+				"PylRS",
+				"PylRS",
+				"RimM---S19-complex",
+				"Rpn14",
+				"RsmC",
+				"S5RE",
+				"S6K1",
+				"SARA",
+				"SBE",
+				"SecDF",
+				"SecYE",
+				"Selenocysteine-tRNA",
+				"SepSecS",
+				"Shc",
+				"Shp-2",
+				"SHP-2",
+				"SIE",
+				"Ski",
+				"Smad4",
+				"Smad7",
+				"Smurf1",
+				"Smurf2",
+				"SnoN",
+				"Sos",
+				"Sos-1",
+				"Src",
+				"SRE",
+				"SRF",
+				"STAT1",
+				"STAT3",
+				"STAT5",
+				"STAT5a",
+				"STAT5b",
+				"Sua5",
+				"TFIIEa-acidic-domain",
+				"TFIIEa-acidic-domain--TFIIH-p62-PH-domain-complex",
+				"TilS",
+				"TmcA",
+				"TPHE39A",
+				"TRBP",
+				"Trm1",
+				"Trm4",
+				"Trm5",
+				"TrmD",
+				"trmFO",
+				"TYW1",
+				"TYW2(MJ1557)",
+				"TYW2(PH0793)",
+				"TYW4",
+				"TYW5",
+				"Ubch5b",
+				"ubiquitin",
+				"UCH37",
+				"ZO-1"
+				};
+	
+		for(int i=0;i<GRID_SIZE;i++){
+			proteinMap.put(i, protein[i]);
+			drugMap.put(i, drug[i]);
+		}
+		
+		for(int i=0;i<GRID_SIZE;i++){
+			for(int j=0;j<GRID_SIZE;j++){
+				String A=proteinMap.get(i);
+				String B=drugMap.get(j);
+				matrix[i][j]=findBA(A,B);	
+			}
+		}	
+		
+		for(int i=0;i<GRID_SIZE;i++){
+			for(int j=0;j<GRID_SIZE;j++){
+				matrixCopy[i][j]=matrix[i][j];
+			}
+		}
+			
+		substractMax(matrix,findMax(matrix));
+	    
+		for(int i=0;i<GRID_SIZE;i++){
+			substractMin(matrix[i]);
+		}
+
+		step2(matrix, colCover, rowCover, mask);
+	
+		
+		for(int i=0;i<GRID_SIZE;i++){
+			for(int j=0;j<GRID_SIZE;j++){
+				if(mask[i][j]==1){
+					String p=proteinMap.get(i);
+					String d=drugMap.get(j);
+					Pair pair=new Pair(p,d);
+					sum+=matrixCopy[i][j];
+					System.out.println(" ( "+p+ " , "+ d +" , "+ matrixCopy[i][j]+" ) "+" -> ");
+					result.add(pair);
+				}
+			}
+		}
+		
+		System.out.println("sum = " +sum);
+}}
