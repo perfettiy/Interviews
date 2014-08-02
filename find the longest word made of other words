@@ -1,0 +1,78 @@
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Hashtable;
+import java.util.Scanner;
+import java.util.Comparator;
+import java.io.*;
+
+public class Solution{
+	public static int findLong(String[] words){
+		Hashtable<String, Boolean> table = new Hashtable<String, Boolean>();
+		for(String s: words){
+			table.put(s, true);
+			}
+		
+		
+		Comparator<String> comparator = new Comparator<String>(){
+			public int compare(String s1, String s2){
+				if(s1.length()<s2.length())
+						return 1;
+				if(s1.length()>s2.length())
+						return -1;
+				return 0;
+						}
+				};
+		Arrays.sort(words, comparator);
+		
+		int count=0;
+		for(String str:words){
+			if(isCompound(table,true, str)){	
+				count++;
+				if(count<=2){
+					System.out.println("the "+ count +" longest String is " + str);
+							}
+						}
+					}
+		System.out.println("the total count of the words that can be constructed of others is "+ count);
+		return count;
+		}
+	
+	public static boolean isCompound(Hashtable<String, Boolean> table,boolean isOriginal, String s){
+		if(table.containsKey(s)&& !isOriginal){
+			return table.get(s);
+		}
+		
+		for(int i=1;i<s.length();i++){
+			String left=s.substring(0,i);
+			String right=s.substring(i);
+			if(table.containsKey(left)&&table.get(left)==true && isCompound(table,false,  right)){
+				return true;
+				}
+			}
+			table.put(s, false);
+			
+		return false;
+		}
+		
+	public static void main(String[] args){
+		String[] arr= new String[173530];
+		try{
+			/*replace with your own file location here*/
+			FileReader fileReader = new FileReader("C:/Users/Yang/Aspera-7.29/bin/wordsforproblem.txt");
+			BufferedReader reader = new BufferedReader(fileReader);
+			int i=0;
+			String line =null;
+		
+			while((line=reader.readLine())!=null){
+				arr[i]=line;
+				i++;
+				}
+			reader.close();
+			}catch(Exception ex){
+				ex.printStackTrace();
+				}
+		
+		findLong(arr);
+		
+		}
+	}
